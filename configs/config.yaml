@@ -195,38 +195,8 @@ dataset_paths:
   tiny_imagenet: "data/tiny-imagenet-200"
 
 #################### Trainer ####################
-trainer:
-  num_clients: 100
-  participation_rate: 0.03
-  global_rounds: 10
-  local_lr: 0.1
-  local_lr_decay: 0.99
-  local_epochs: 5
 
-#################### Client ####################
-client:
-  ce_loss:
-    weight: 1.0
-  feature_align_loss:
-    weight: 1.0
-    align_type: 'cosine'
-  prox_loss:
-    weight: 0.0
-  rcl_loss:
-    feature_relu: False
-    pairs:
-      - name: 'scl'
-        weight: 1.0
-        branch_level: [0, 1, 2, 3]
-      - name: 'penalty'
-        weight: 1.0
-        branch_level: [0, 1, 2, 3]
-    topk_neg: 5
 
-#################### Server ####################
-server:
-  momentum: 0.0
-  FedACG: False
 
 #################### Model ####################
 model:
