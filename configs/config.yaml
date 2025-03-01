@@ -17,7 +17,7 @@
 # exp_name: base
 # output_model_path: 'res18.pt'
 # save_freq: 1000
-# batch_size: 2
+# batch_size: 64
 # save_test: False 
 
 # ## Resume
@@ -49,7 +49,7 @@
 # #################### Eval ####################
 # eval:
 #   freq: 1
-#   batch_size: 2
+#   batch_size: 64
 
 # analysis: False
 
@@ -83,7 +83,7 @@ checkpoint_path: './checkpoints'
 exp_name: base
 output_model_path: 'res18.pt'
 save_freq: 1000
-batch_size: 2
+batch_size: 64
 save_test: False 
 
 ## Resume
@@ -115,7 +115,7 @@ optimizer:
 #################### Eval ####################
 eval:
   freq: 1
-  batch_size: 2
+  batch_size: 64
 
 analysis: False
 
@@ -132,7 +132,7 @@ defaults:
 
 #################### Dataset Path ####################
 dataset_paths:
-  cifar10: "data/cifar-10-batches-py"
+  cifar10: "/kaggle/input/cifar-10-batches-py"
   cifar100: "data/cifar-100-python"
   tiny_imagenet: "data/tiny-imagenet-200"
 
