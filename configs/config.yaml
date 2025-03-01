@@ -155,7 +155,7 @@ checkpoint_path: './checkpoints'
 exp_name: base
 output_model_path: 'res18.pt'
 save_freq: 1000
-batch_size: 64
+batch_size: 128
 save_test: False
 
 ## Resume
@@ -184,7 +184,7 @@ optimizer:
 #################### Eval ####################
 eval:
   freq: 1
-  batch_size: 64
+  batch_size: 128
 
 analysis: False
 
