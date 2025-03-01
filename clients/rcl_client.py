@@ -647,13 +647,3 @@ class RCLClient(Client):
         # Move state_dict to CPU before returning
         state_dict = {k: v.cpu() for k, v in self.model.state_dict().items()}
         return state_dict, loss_dict
-
-
-
-
-
-
-
-
-
-
