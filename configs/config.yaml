@@ -70,7 +70,7 @@ wandb: False
 seed: 0
 enable_benchmark: True
 use_amp: True
-multiprocessing: False
+multiprocessing: True
 main_gpu: '0'
 num_workers: 4
 pin_memory: True
