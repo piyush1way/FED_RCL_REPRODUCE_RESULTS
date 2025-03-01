@@ -148,7 +148,7 @@ main_gpu: '0'  # Use GPU 0
 num_workers: 4
 pin_memory: True
 refactoring: True
-verbose: False
+verbose: True
 remark: ""
 
 checkpoint_path: './checkpoints'
