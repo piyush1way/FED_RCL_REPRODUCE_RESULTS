@@ -639,6 +639,3 @@ class Trainer:
         return {
             "acc": acc,
         }
-
-
-    
