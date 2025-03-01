@@ -74,13 +74,11 @@
 
 # if __name__ == '__main__':
 #     main()
-
 import os
 from pathlib import Path
 
 import torch
 import wandb
-from torch.multiprocessing import set_start_method
 from torch.utils.data import DataLoader
 
 from datasets.build import build_dataset, build_datasets
@@ -102,16 +100,11 @@ coloredlogs.install(level='INFO', fmt='%(asctime)s %(name)s[%(process)d] %(messa
 
 wandb.require("service")
 
-
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(args: DictConfig) -> None:
-    # Set multiprocessing start method to 'spawn' for compatibility with CUDA
-    torch.multiprocessing.set_sharing_strategy('file_system')
-    set_start_method('spawn', force=True)
-
-    # Ensure CUDA device is set
+    # Set up environment
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.main_gpu  # Use the specified GPU
+    torch.multiprocessing.set_sharing_strategy('file_system')  # Optional, for better file handling
 
     # Set up experiment directory
     args.log_dir = Path(args.log_dir)
@@ -121,7 +114,7 @@ def main(args: DictConfig) -> None:
     if not args.log_dir.exists():
         args.log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Initialize WandB for logging
+    # Initialize WandB
     if args.wandb:
         wandb.init(
             entity='federated_learning',
@@ -135,24 +128,21 @@ def main(args: DictConfig) -> None:
             args, resolve=True, throw_on_missing=True
         ))
 
-    # Initialize random seed for reproducibility
+    # Set random seed for reproducibility
     initalize_random_seed(args)
 
-    # Set device to GPU if available
-    device = torch.device(f"cuda:{args.main_gpu}" if torch.cuda.is_available() else "cpu")
+    # Set device (GPU if available, otherwise CPU)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Build model and move it to the specified device
-    model = build_encoder(args).to(device)
-    print(f"Model is on device: {next(model.parameters()).device}")
-
-    # Build other components
+    # Build model, datasets, and components
+    model = build_encoder(args)
     client_type = get_client_type(args)
     server = build_server(args)
     datasets = build_datasets(args)
     evaler_type = get_evaler_type(args)
 
-    # Build trainer and start training
+    # Initialize trainer
     trainer_type = get_trainer_type(args)
     trainer = trainer_type(
         model=model,
@@ -162,7 +152,6 @@ def main(args: DictConfig) -> None:
         datasets=datasets,
         device=device,
         args=args,
-        config=None,
     )
 
     # Start training
@@ -171,3 +160,4 @@ def main(args: DictConfig) -> None:
 
 if __name__ == '__main__':
     main()
+
