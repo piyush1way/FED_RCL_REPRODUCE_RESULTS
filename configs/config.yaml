@@ -181,6 +181,9 @@ optimizer:
   momentum: 0.0
   wd: 1e-3
 
+trainer:
+  global_rounds: 10
+
 #################### Eval ####################
 eval:
   freq: 1
