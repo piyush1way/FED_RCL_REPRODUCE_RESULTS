@@ -182,6 +182,9 @@ optimizer:
   momentum: 0.0
   wd: 1e-3
 
+server:
+  name: Server
+
 # trainer:
 #   global_rounds: 10
 
