@@ -112,7 +112,7 @@
 #         return model_dict
 
 # !/usr/bin/env python
-coding: utf-8
+# coding: utf-8
 import copy
 import time
 import matplotlib.pyplot as plt
