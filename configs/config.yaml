@@ -165,7 +165,9 @@ wandb_resume_id: False
 
 ###### wandb && logging ######
 project: "FedRCL"
-log_dir: './checkpoints'
+# log_dir: './checkpoints'
+log_dir: "/kaggle/working/checkpoints"
+
 
 #################### Data Split ####################
 split:
