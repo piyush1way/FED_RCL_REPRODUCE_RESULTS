@@ -151,10 +151,11 @@ refactoring: True
 verbose: True
 remark: ""
 
-checkpoint_path: './checkpoints'
+# checkpoint_path: './checkpoints'
+checkpoint_path: "/kaggle/working/checkpoints"
 exp_name: base
 output_model_path: 'res18.pt'
-save_freq: 1000
+save_freq: 50  
 batch_size: 32
 save_test: False
 
@@ -181,8 +182,8 @@ optimizer:
   momentum: 0.0
   wd: 1e-3
 
-trainer:
-  global_rounds: 10
+# trainer:
+#   global_rounds: 10
 
 #################### Eval ####################
 eval:
