@@ -184,8 +184,16 @@ optimizer:
   momentum: 0.0
   wd: 1e-3
 
+# server:
+#   name: Server
+
 server:
-  name: Server
+  name: ServerAdam  # Use FedAdam instead of FedAvg
+  momentum: 0.9      # Common value for momentum (adjust as needed)
+  beta: 0.99        # Adam's second moment estimation coefficient
+  tau: 1e-3         # Smoothing term to avoid division by zero
+
+
 
 # trainer:
 #   global_rounds: 10
