@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import torch
 import torch.nn as nn
+import torch.multiprocessing as mp
 import tqdm
 import wandb
 import gc
@@ -26,7 +27,7 @@ from utils.logging_utils import AverageMeter
 
 from torch.utils.data import DataLoader
 
-from utils import initalize_random_seed, save_checkpoint
+from utils import terminate_processes, initalize_random_seed, save_checkpoint
 from omegaconf import DictConfig, OmegaConf
 
 from netcal.metrics import ECE
@@ -44,6 +45,7 @@ class Trainer:
         datasets: Dict,
         device: torch.device,
         args: DictConfig,
+        multiprocessing: Dict = None,
         **kwargs,
     ) -> None:
         self.args = args
@@ -69,7 +71,10 @@ class Trainer:
             client_type(self.args, client_index=c, model=copy.deepcopy(self.model))
             for c in range(self.args.trainer.num_clients)
         ]
-        self.server = server  # Use the Server class (FedAvg)
+        self.server = server
+        if self.args.server.server.momentum > 0:  # Updated to handle nested server config
+            self.server.set_momentum(self.model)
+
         self.datasets = datasets
         self.local_dataset_split_ids = get_dataset(self.args, self.datasets["train"], mode=self.args.split.mode)
 
@@ -79,7 +84,7 @@ class Trainer:
             shuffle=False,
             num_workers=args.num_workers,
         )
-        self.eval_device = self.device
+        self.eval_device = self.device if not self.args.multiprocessing else torch.device(f"cuda:{self.args.main_gpu}")
         eval_params = {
             "test_loader": test_loader,
             "device": self.eval_device,
@@ -92,12 +97,57 @@ class Trainer:
         if self.args.get("load_model_path"):
             self.load_model()
 
+    def local_update(self, device, task_queue, result_queue):
+        if self.args.multiprocessing:
+            torch.cuda.set_device(device)
+            initalize_random_seed(self.args)
+
+        while True:
+            task = task_queue.get()
+            if task is None:
+                break
+            client = self.clients[task["client_idx"]]
+
+            local_dataset = DatasetSplitSubset(
+                self.datasets["train"],
+                idxs=self.local_dataset_split_ids[task["client_idx"]],
+                subset_classes=self.args.dataset.get("subset_classes"),
+            )
+
+            setup_inputs = {
+                "state_dict": task["state_dict"],
+                "device": device,
+                "local_dataset": local_dataset,
+                "local_lr": task["local_lr"],
+                "global_epoch": task["global_epoch"],
+                "trainer": self,
+            }
+            client.setup(**setup_inputs)
+
+            # Local Training
+            local_state_dict, local_loss_dict = client.local_train(global_epoch=task["global_epoch"])
+            result_queue.put((local_state_dict, local_loss_dict))
+            if not self.args.multiprocessing:
+                break
+
     def train(self) -> Dict:
-        # Ensure GPU is available
-        if not torch.cuda.is_available():
-            raise RuntimeError("No GPU available. This script requires a GPU to run.")
+        result_queue = mp.Manager().Queue()
 
         M = max(int(self.participation_rate * self.num_clients), 1)
+
+        if self.args.multiprocessing:
+            ngpus_per_node = torch.cuda.device_count()
+            task_queues = [mp.Queue() for _ in range(M)]
+            processes = [
+                mp.get_context("spawn").Process(
+                    target=self.local_update, args=(i % ngpus_per_node, task_queues[i], result_queue)
+                )
+                for i in range(M)
+            ]
+
+            # Start all processes
+            for p in processes:
+                p.start()
 
         for epoch in range(self.start_round, self.global_rounds):
             self.lr_update(epoch=epoch)
@@ -120,42 +170,50 @@ class Trainer:
 
             local_models = []
 
+            # FedACG lookahead momentum
+            if self.args.server.server.get("FedACG"):  # Updated to handle nested server config
+                assert self.args.server.server.momentum > 0  # Updated to handle nested server config
+                self.model = copy.deepcopy(self.server.FedACG_lookahead(copy.deepcopy(self.model)))
+                global_state_dict = copy.deepcopy(self.model.state_dict())
+
             # Client-side
             start = time.time()
-            for client_idx in selected_client_ids:
-                client = self.clients[client_idx]
-
-                local_dataset = DatasetSplitSubset(
-                    self.datasets["train"],
-                    idxs=self.local_dataset_split_ids[client_idx],
-                    subset_classes=self.args.dataset.get("subset_classes"),
-                )
-
-                # Debug: Print class distribution for the first few clients
-                if epoch == 0 and client_idx < 5:
-                    print(f"Client {client_idx} class counts:", np.bincount(local_dataset.targets))
-
-                setup_inputs = {
-                    "state_dict": global_state_dict,
-                    "device": self.device,
-                    "local_dataset": local_dataset,
+            for i, client_idx in enumerate(selected_client_ids):
+                task_queue_input = {
+                    "state_dict": self.model.state_dict(),
+                    "client_idx": client_idx,
                     "local_lr": current_lr,
                     "global_epoch": epoch,
-                    "trainer": self,
                 }
-                client.setup(**setup_inputs)
+                if self.args.multiprocessing:
+                    task_queues[i].put(task_queue_input)
+                else:
+                    task_queue = mp.Queue()
+                    task_queue.put(task_queue_input)
+                    self.local_update(self.device, task_queue, result_queue)
 
-                # Local Training
-                local_state_dict, local_loss_dict = client.local_train(global_epoch=epoch)
+                    local_state_dict, local_loss_dict = result_queue.get()
+                    for loss_key in local_loss_dict:
+                        local_loss_dicts[loss_key].append(local_loss_dict[loss_key])
 
-                for loss_key in local_loss_dict:
-                    local_loss_dicts[loss_key].append(local_loss_dict[loss_key])
+                    local_models.append(local_state_dict)
 
-                local_models.append(local_state_dict)
+                    for param_key in local_state_dict:
+                        local_weights[param_key].append(local_state_dict[param_key])
+                        local_deltas[param_key].append(local_state_dict[param_key] - global_state_dict[param_key])
 
-                for param_key in local_state_dict:
-                    local_weights[param_key].append(local_state_dict[param_key])
-                    local_deltas[param_key].append(local_state_dict[param_key] - global_state_dict[param_key])
+            if self.args.multiprocessing:
+                for _ in range(len(selected_client_ids)):
+                    result = result_queue.get()
+                    local_state_dict, local_loss_dict = result
+                    for loss_key in local_loss_dict:
+                        local_loss_dicts[loss_key].append(local_loss_dict[loss_key])
+
+                    local_models.append(local_state_dict)
+
+                    for param_key in local_state_dict:
+                        local_weights[param_key].append(local_state_dict[param_key])
+                        local_deltas[param_key].append(local_state_dict[param_key] - global_state_dict[param_key])
 
             logger.info(f"Global epoch {epoch}, Train End. Total Time: {time.time() - start:.2f}s")
 
@@ -184,6 +242,10 @@ class Trainer:
 
             self.wandb_log(wandb_dict, step=epoch)
             gc.collect()
+
+        if self.args.multiprocessing:
+            # Terminate Processes
+            terminate_processes(task_queues, processes)
 
         return
 
