@@ -69,10 +69,7 @@ class Trainer:
             client_type(self.args, client_index=c, model=copy.deepcopy(self.model))
             for c in range(self.args.trainer.num_clients)
         ]
-        self.server = server
-        if self.args.server.server.momentum > 0:  # Updated to handle nested server config
-            self.server.set_momentum(self.model)
-
+        self.server = server  # Use the Server class (FedAvg)
         self.datasets = datasets
         self.local_dataset_split_ids = get_dataset(self.args, self.datasets["train"], mode=self.args.split.mode)
 
@@ -123,12 +120,6 @@ class Trainer:
 
             local_models = []
 
-            # FedACG lookahead momentum
-            if self.args.server.server.get("FedACG"):  # Updated to handle nested server config
-                assert self.args.server.server.momentum > 0  # Updated to handle nested server config
-                self.model = copy.deepcopy(self.server.FedACG_lookahead(copy.deepcopy(self.model)))
-                global_state_dict = copy.deepcopy(self.model.state_dict())
-
             # Client-side
             start = time.time()
             for client_idx in selected_client_ids:
@@ -168,7 +159,7 @@ class Trainer:
 
             logger.info(f"Global epoch {epoch}, Train End. Total Time: {time.time() - start:.2f}s")
 
-            # Server-side
+            # Server-side (FedAvg)
             updated_global_state_dict = self.server.aggregate(
                 local_weights, local_deltas, selected_client_ids, copy.deepcopy(global_state_dict), current_lr
             )
