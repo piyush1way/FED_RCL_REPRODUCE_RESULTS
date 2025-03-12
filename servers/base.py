@@ -12,17 +12,20 @@ from utils.metrics import evaluate
 from models import build_encoder
 from typing import Callable, Dict, Tuple, Union, List
 
-
+import torch
 from servers.build import SERVER_REGISTRY
 
-@SERVER_REGISTRY.register()
-class Server():
 
+@SERVER_REGISTRY.register()
+class Server:
     def __init__(self, args):
         self.args = args
         return
     
     def aggregate(self, local_weights, local_deltas, client_ids, model_dict, current_lr):
+        """
+        Federated Averaging (FedAvg) aggregation.
+        """
         C = len(client_ids)
         for param_key in local_weights:
             local_weights[param_key] = sum(local_weights[param_key]) / C
