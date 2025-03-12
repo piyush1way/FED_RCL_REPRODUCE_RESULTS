@@ -1,15 +1,6 @@
-# ## Server ##
-# type: Server
-# momentum: -1
-
-# server:
-#   name: ServerAdam
-#   momentum: 0.9
-#   beta: 0.99
-#   tau: 1e-3
 server:
   type: ServerAdam
   name: ServerAdam
   momentum: 0.9
   beta: 0.99
-  tau: 1e-3
+  tau: 0.001
