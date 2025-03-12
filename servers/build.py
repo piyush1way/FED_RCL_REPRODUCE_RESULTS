@@ -15,11 +15,11 @@ def get_server_type(args):
         print(SERVER_REGISTRY)
     print("=> Getting server type '{}'".format(args.server.type))
     server_type = SERVER_REGISTRY.get(args.server.type)
-    
     return server_type
 
 
 def build_server(args):
+    print("Args:", args)  # Debugging: Print the args object
     server_type = get_server_type(args)
     server = server_type(args)
     return server
