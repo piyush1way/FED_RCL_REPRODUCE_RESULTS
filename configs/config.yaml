@@ -54,8 +54,6 @@ eval:
 analysis: False
 
 defaults:
-  
-defaults:
   - _self_
   - trainer: base
   - client: base
