@@ -140,6 +140,10 @@ class Trainer:
                     subset_classes=self.args.dataset.get("subset_classes"),
                 )
 
+                # Debug: Print class distribution for the first few clients
+                if epoch == 0 and client_idx < 5:
+                    print(f"Client {client_idx} class counts:", np.bincount(local_dataset.targets))
+
                 setup_inputs = {
                     "state_dict": global_state_dict,
                     "device": self.device,
