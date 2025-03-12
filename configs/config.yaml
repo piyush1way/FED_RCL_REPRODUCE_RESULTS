@@ -46,15 +46,17 @@ optimizer:
   wd: 1e-3
 
 
-#################### Eval ####################
+#################### Eval ###################
 eval:
   freq: 1
   batch_size: 128
 
 analysis: False
 
-
 defaults:
+  
+defaults:
+  - _self_
   - trainer: base
   - client: base
   - evaler: base
