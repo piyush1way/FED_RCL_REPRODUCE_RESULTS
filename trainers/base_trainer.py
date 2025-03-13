@@ -73,8 +73,11 @@ class Trainer:
         ]
         self.server = server
 
-        # Check if the server is ServerAdam and requires momentum
-        if hasattr(self.args.server.server, "momentum") and self.args.server.server.momentum > 0:
+        # Initialize global_delta if using ServerAdam
+        if hasattr(self.server, 'global_delta') and self.server.global_delta is None:
+            self.server.global_delta = {}
+
+        if self.args.server.momentum > 0:
             self.server.set_momentum(self.model)
 
         self.datasets = datasets
@@ -86,12 +89,14 @@ class Trainer:
             shuffle=False,
             num_workers=args.num_workers,
         )
-        self.eval_device = self.device if not self.args.multiprocessing else torch.device(f"cuda:{self.args.main_gpu}")
+        eval_device = self.device if not self.args.multiprocessing else torch.device(f"cuda:{self.args.main_gpu}")
         eval_params = {
             "test_loader": test_loader,
-            "device": self.eval_device,
+            "device": eval_device,
             "args": args,
         }
+        self.eval_params = eval_params
+        self.eval_device = eval_device
         self.evaler = evaler_type(**eval_params)
         logger.info(f"Trainer: {self.__class__}, client: {client_type}, server: {server.__class__}, evaler: {evaler_type}")
 
@@ -127,8 +132,8 @@ class Trainer:
             client.setup(**setup_inputs)
 
             # Local Training
-            local_state_dict, local_loss_dict = client.local_train(global_epoch=task["global_epoch"])
-            result_queue.put((local_state_dict, local_loss_dict))
+            local_model, local_loss_dict = client.local_train(global_epoch=task["global_epoch"])
+            result_queue.put((local_model, local_loss_dict))
             if not self.args.multiprocessing:
                 break
 
@@ -173,8 +178,8 @@ class Trainer:
             local_models = []
 
             # FedACG lookahead momentum
-            if hasattr(self.args.server.server, "FedACG") and self.args.server.server.FedACG:
-                assert hasattr(self.args.server.server, "momentum") and self.args.server.server.momentum > 0
+            if self.args.server.get("FedACG"):
+                assert self.args.server.momentum > 0
                 self.model = copy.deepcopy(self.server.FedACG_lookahead(copy.deepcopy(self.model)))
                 global_state_dict = copy.deepcopy(self.model.state_dict())
 
@@ -219,7 +224,7 @@ class Trainer:
 
             logger.info(f"Global epoch {epoch}, Train End. Total Time: {time.time() - start:.2f}s")
 
-            # Server-side (FedAvg)
+            # Server-side
             updated_global_state_dict = self.server.aggregate(
                 local_weights, local_deltas, selected_client_ids, copy.deepcopy(global_state_dict), current_lr
             )
