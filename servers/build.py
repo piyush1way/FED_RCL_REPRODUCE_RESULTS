@@ -13,10 +13,19 @@ __all__ = ['get_server_type', 'build_server']
 def get_server_type(args):
     if args.verbose:
         print(SERVER_REGISTRY)
-    print("=> Getting server type '{}'".format(args.server.type))
-    server_type = SERVER_REGISTRY.get(args.server.type)
-    
+
+    # Ensure args.server.type is set correctly, default to "Server"
+    server_type_name = getattr(args.server, 'type', 'Server')  
+    print("=> Getting server type '{}'".format(server_type_name))
+
+    # Fetch the server type from the registry
+    server_type = SERVER_REGISTRY.get(server_type_name)
+
+    if server_type is None:
+        raise ValueError(f"Error: Server type '{server_type_name}' not found in SERVER_REGISTRY.")
+
     return server_type
+
 
 
 def build_server(args):
