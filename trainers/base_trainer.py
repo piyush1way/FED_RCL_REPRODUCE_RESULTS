@@ -72,7 +72,9 @@ class Trainer:
             for c in range(self.args.trainer.num_clients)
         ]
         self.server = server
-        if self.args.server.server.momentum > 0:  # Updated to handle nested server config
+
+        # Check if the server is ServerAdam and requires momentum
+        if hasattr(self.args.server.server, "momentum") and self.args.server.server.momentum > 0:
             self.server.set_momentum(self.model)
 
         self.datasets = datasets
@@ -171,8 +173,8 @@ class Trainer:
             local_models = []
 
             # FedACG lookahead momentum
-            if self.args.server.server.get("FedACG"):  # Updated to handle nested server config
-                assert self.args.server.server.momentum > 0  # Updated to handle nested server config
+            if hasattr(self.args.server.server, "FedACG") and self.args.server.server.FedACG:
+                assert hasattr(self.args.server.server, "momentum") and self.args.server.server.momentum > 0
                 self.model = copy.deepcopy(self.server.FedACG_lookahead(copy.deepcopy(self.model)))
                 global_state_dict = copy.deepcopy(self.model.state_dict())
 
