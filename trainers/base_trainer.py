@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 import time, io, copy
 
 from trainers.build import TRAINER_REGISTRY
-from servers import Server
+from servers import Server  # Ensure Server is imported correctly
 from clients import Client
 
 from utils import DatasetSplit, DatasetSplitSubset, get_dataset
@@ -40,7 +40,7 @@ class Trainer:
         self,
         model: nn.Module,
         client_type: Type,
-        server: Server,
+        server: Server,  # Ensure server is of type Server
         evaler_type: Type,
         datasets: Dict,
         device: torch.device,
@@ -71,13 +71,14 @@ class Trainer:
             client_type(self.args, client_index=c, model=copy.deepcopy(self.model))
             for c in range(self.args.trainer.num_clients)
         ]
-        self.server = server
+        self.server = server  # Ensure server is correctly assigned
 
         # Initialize global_delta if using ServerAdam
         if hasattr(self.server, 'global_delta') and self.server.global_delta is None:
             self.server.global_delta = {}
 
-        if self.args.server.momentum > 0:
+        # Check if momentum is defined before accessing it
+        if hasattr(self.args.server, 'momentum') and self.args.server.momentum > 0:
             self.server.set_momentum(self.model)
 
         self.datasets = datasets
