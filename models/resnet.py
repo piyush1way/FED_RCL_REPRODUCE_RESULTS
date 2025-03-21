@@ -11,6 +11,9 @@ import torchvision.models as models
 import torchvision
 from models.build import ENCODER_REGISTRY
 
+from models.resnet_base import ResNet18_base
+from models.build import ENCODER_REGISTRY
+from omegaconf import DictConfig
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -202,3 +205,6 @@ def ResNet101(num_classes=10, l2_norm=False):
 def ResNet152(num_classes=10, l2_norm=False):
     return ResNet(Bottleneck, [3, 8, 36, 3], num_classes=num_classes, l2_norm=l2_norm)
 
+class PersonalizedResNet18(ResNet18_base):
+    def __init__(self, args: DictConfig, num_classes: int = 10, **kwargs):
+        super().__init__(args, num_classes=num_classes, **kwargs)
